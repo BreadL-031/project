@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Crypto-Mining Tycoon 5.0</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#111;color:#eee;margin:0;padding:20px}
+  h1,h2{margin:0 0 10px}
+  .section{margin-bottom:40px}
+  button,select{margin:4px;padding:8px 12px;border-radius:6px;background:#333;color:#fff;border:0;cursor:pointer}
+  button:hover,select:hover{background:#555}
+  button:disabled{background:#222;cursor:not-allowed;color:#666}
+  .market-row,.market-header{display:flex;justify-content:space-between;align-items:center;padding:4px 0}
+  .market-header{font-weight:bold;border-bottom:1px solid #444}
+  .inv-item{background:#222;padding:6px 10px;border-radius:6px;margin-bottom:4px;font-size:0.9rem;display:flex;justify-content:space-between;align-items:center}
+  .cool{color:#ff9800}
+  .cooling-item{color:#4caf50;font-style:italic}
+  .overheating{color:#ff4444;font-weight:bold}
+  #inventory{min-height:100px;padding:10px;background:#222;border-radius:6px}
+  #shopList{max-height:400px;min-height:100px;overflow-y:auto;padding:10px}
+  .upgrade-buttons button{font-size:0.8rem;padding:4px 8px;margin:2px}
+  #shopModal {
+    z-index: 1000;
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(3px);
+    justify-content: center;
+    align-items: start;
+    padding-top: 40px;
+  }
+  #shopModal.active {
+    display: flex !important;
+  }
+  #achievements div {padding: 4px; background: #222; margin: 4px 0; border-radius: 4px;}
+  #shopWallet {margin-top: 10px; font-weight: bold;}
+  #notification {display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#333; color:#fff; padding:10px 20px; border-radius:6px; z-index:1000;}
+</style>
+</head>
+<body>
+<h1>💰 Crypto-Mining Tycoon 5.0</h1>
+
+<!-- Notification -->
+<div id="notification"></div>
+
+<!-- WALLET & BANK -->
+<div class="section">
+  <h2>💵 Wallet & Bank</h2>
+  💵 Wallet: $<span id="wallet">1000</span><br>
+  🏦 Bank: $<span id="bank">0</span><br>
+  <button onclick="transfer('wallet','bank')">→ Bank</button>
+  <button onclick="transfer('bank','wallet')">← Wallet</button>
+</div>
+
+<!-- CRYPTO MARKET -->
+<div class="section">
+  <h2>💱 Crypto Market</h2>
+  <div class="market-header"><span>Coin</span><span>Price</span><span>Remaining</span><span>Difficulty</span><span>Actions</span></div>
+  <div id="crypto-market"></div>
+</div>
+
+<!-- Crypto Wallet -->
+<div class="section">
+  <h2>💎 Crypto Wallet</h2>
+  <div id="crypto-wallet"></div>
+</div>
+
+<!-- MINING STATS -->
+<div class="section">
+  <h2>⛏️ Mining Stats</h2>
+  Currently Mining: <span id="mining-crypto">—</span><br>
+  Raw Speed Σ: <span id="raw-speed">0</span>/s<br>
+  Effective Speed: <span id="eff-speed">0</span>/s<br>
+  Total Mined: <span id="total-mined">0</span><br>
+  Power Usage: <span id="total-watts">0</span> W/s<br>
+  Electricity Fee: $<span id="electricity-fee">0.0000</span>/s | Highest Power: <span id="highest-watt-item">None</span><br>
+  <button onclick="stopMining()">Stop Mining</button>
+</div>
+
+<!-- INVENTORY & SHOP -->
+<div class="section">
+  <h2>🛒 Shop / Inventory</h2>
+  <button onclick="openShop('intel')">Intel Shop</button>
+  <button onclick="openShop('amd')">AMD Shop</button>
+  <button onclick="openShop('nvidia')">NVIDIA Shop</button>
+  <button onclick="openShop('rigs')">Rigs Shop</button>
+  <button onclick="openShop('blackmarket')">Black Market</button>
+  <div id="inventory"></div>
+</div>
+
+<!-- GAMEPASS SHOP -->
+<div class="section">
+  <h2>🎟️ Gamepasses</h2>
+  <button onclick="buyGamepass('autoMine')">Auto-Mine Best Crypto ($500)</button>
+  <button id="autoMineToggle" style="display:none" onclick="toggleAutoMine()">Toggle Auto-Mine (Off)</button>
+  <button onclick="buyGamepass('autoSell')">Auto-Sell Crypto ($400)</button>
+  <button id="autoSellToggle" style="display:none" onclick="toggleAutoSell()">Toggle Auto-Sell (Off)</button>
+  <button onclick="buyGamepass('lowElectricity')">Low Electricity Fee ($300)</button>
+</div>
+
+<!-- ACHIEVEMENTS -->
+<div class="section">
+  <h2>🏆 Achievements</h2>
+  <div id="achievements"></div>
+</div>
+
+<!-- DIFFICULTY SELECTOR -->
+<div class="section">
+  <h2>🎮 Difficulty</h2>
+  <select id="difficultySelect" onchange="changeDifficulty(this.value)">
+    <option value="easy">Easy</option>
+    <option value="normal" selected>Normal</option>
+    <option value="hard">Hard</option>
+    <option value="insane">Insane</option>
+    <option value="nearly_impossible">Nearly Impossible</option>
+    <option value="hell">Hell Mode</option>
+  </select>
+  <span>Current: <span id="currentDifficulty">Normal</span></span>
+</div>
+
+<!-- RESET & DEBUG -->
+<div class="section">
+  <h2>🔄 Reset Game</h2>
+  <button onclick="resetGame()">Reset All</button>
+  <button onclick="clearSaveData()">Clear Save Data</button>
+</div>
+
+<!-- SHOP MODAL -->
+<div id="shopModal">
+  <div style="background:#222;padding:20px;border-radius:10px;max-width:600px;width:90%">
+    <h2 id="shopTitle">Shop</h2>
+    <div id="shopWallet">Wallet: $<span id="shopWalletAmount">0.00</span></div>
+    <div id="shopList"></div>
+    <button id="shopRefreshBtn" onclick="refreshShopItems()">Refresh Items (Free)</button>
+    <button id="blackMarketRefreshBtn" style="display:none" onclick="refreshBlackMarket()">Refresh Items ($10000)</button>
+    <button onclick="closeShop()">Close</button>
+  </div>
+</div>
+
+<script>
+/* ---------- STATE ---------- */
+let inventory = [];
+let cryptoBalance = {};
+let miningCrypto = null;
+let miningTimer = null;
+let rawSpeed = 0, effSpeed = 0, totalMined = 0;
+let currentShop = null;
+let gamepasses = { autoMine: false, autoSell: false, lowElectricity: false };
+let autoMineEnabled = false;
+let autoSellEnabled = false;
+let totalWatts = 0;
+let debt = 0;
+let shopOCStocks = { intel: [], amd: [], nvidia: [], rigs: [], blackmarket: [] };
+let intelShopStock = [];
+let amdShopStock = [];
+let nvidiaShopStock = [];
+let rigsShopStock = [];
+let blackMarketStock = [];
+let lastShopRefresh = 0;
+let intervals = [];
+let achievements = {
+  mine_shib_100: { name: "Mine 100 SHIB", condition: () => Number(cryptoBalance['SHIB'] || 0) >= 100, reward: 500, completed: false },
+  earn_10000: { name: "Earn $10,000", condition: () => Number(money('wallet')) + Number(money('bank')) >= 10000, reward: 1000, completed: false },
+  buy_5_rigs: { name: "Buy 5 Rigs", condition: () => Array.isArray(inventory) && inventory.filter(it => it && (it.type === 'Rig' || it.type === 'Elite Rig')).length >= 5, reward: 2000, completed: false }
+};
+let tempSpeedBoost = 1;
+let currentDifficulty = 'normal';
+let shopWalletInterval = null;
+const OVERHEATING_THRESHOLD = 1000; // Watts threshold for overheating
+const difficultySettings = {
+  easy: { miningMultiplier: 0.5, electricityMultiplier: 0.5, priceMultiplier: 0.8, stockReplenishRate: 0.3 },
+  normal: { miningMultiplier: 1.0, electricityMultiplier: 1.0, priceMultiplier: 1.0, stockReplenishRate: 0.15 },
+  hard: { miningMultiplier: 1.5, electricityMultiplier: 1.5, priceMultiplier: 1.3, stockReplenishRate: 0.1 },
+  insane: { miningMultiplier: 2.0, electricityMultiplier: 2.0, priceMultiplier: 1.6, stockReplenishRate: 0.05 },
+  nearly_impossible: { miningMultiplier: 3.0, electricityMultiplier: 3.0, priceMultiplier: 2.0, stockReplenishRate: 0.03 },
+  hell: { miningMultiplier: 4.0, electricityMultiplier: 5.0, priceMultiplier: 3.0, stockReplenishRate: 0.02 }
+};
+
+/* ---------- TABLES ---------- */
+const cryptoPriceData = {
+  BTC: { basePrice: 50000, volatility: 0.05 },
+  ETH: { basePrice: 3000, volatility: 0.07 },
+  LTC: { basePrice: 150, volatility: 0.10 },
+  BCH: { basePrice: 400, volatility: 0.10 },
+  ADA: { basePrice: 1.5, volatility: 0.12 },
+  DOT: { basePrice: 30, volatility: 0.12 },
+  LINK: { name: "Chainlink", basePrice: 25, volatility: 0.12 },
+  UNI: { basePrice: 20, volatility: 0.12 },
+  SOL: { basePrice: 150, volatility: 0.10 },
+  MATIC: { basePrice: 1.2, volatility: 0.15 },
+  AVAX: { basePrice: 50, volatility: 0.12 },
+  XRP: { basePrice: 0.8, volatility: 0.15 },
+  DOGE: { basePrice: 0.2, volatility: 0.20 },
+  SHIB: { basePrice: 0.00003, volatility: 0.25 }
+};
+
+const sortedCoins = Object.keys(cryptoPriceData).sort((a, b) => cryptoPriceData[a].basePrice - cryptoPriceData[b].basePrice);
+let cryptoDifficulty = {};
+let marketStock = {};
+let cryptoPrices = {};
+function updateCryptoDifficulty() {
+  console.log("Updating crypto difficulties");
+  sortedCoins.forEach((coin, index) => {
+    const baseDiff = 2 + (index / (sortedCoins.length - 1)) * 8;
+    cryptoDifficulty[coin] = Math.min(50, Math.max(1, baseDiff * difficultySettings[currentDifficulty].miningMultiplier));
+  });
+  console.log("Crypto difficulties:", cryptoDifficulty);
+}
+
+const marketEvents = [
+  { name: "BTC Surge", effect: () => { cryptoPrices['BTC'] *= 1.2; refreshMarket(); }, duration: 120000 },
+  { name: "SHIB Crash", effect: () => { cryptoPrices['SHIB'] *= 0.85; refreshMarket(); }, duration: 120000 },
+  { name: "Mining Boom", effect: () => { tempSpeedBoost = 1.5; recalcRawSpeed(); }, duration: 120000, cleanup: () => { tempSpeedBoost = 1; recalcRawSpeed(); } }
+];
+
+/* ---------- SHOP ITEM GENERATION ---------- */
+function generateShopItems(shopType) {
+  console.log(`Generating items for ${shopType} shop`);
+  const itemCount = shopType === 'blackmarket' ? Math.floor(Math.random() * 4) + 3 : Math.floor(Math.random() * 5) + 8;
+  const items = [];
+  const prefixes = {
+    intel: ['Intel Core i3-', 'Intel Core i5-', 'Intel Core i7-', 'Intel Xeon-'],
+    amd: ['AMD Ryzen 3 ', 'AMD Ryzen 5 ', 'AMD Ryzen 7 ', 'AMD EPYC '],
+    nvidia: ['NVIDIA GTX ', 'NVIDIA RTX ', 'NVIDIA Quadro ', 'NVIDIA Titan '],
+    rigs: ['Intel i3 + RTX ', 'AMD Ryzen 5 + GTX ', 'Intel i7 + RTX ', 'Dual Xeon + Quadro '],
+    blackmarket: ['DarkRig ', 'CryptoBeast ', 'MegaMiner ', 'Quantum ']
+  };
+  const suffixes = {
+    miner: ['Miner', 'Mining Edition', 'Pro'],
+    cooling: ['Cooler', 'Liquid Cooling', 'Thermal Unit'],
+    power: ['PSU', 'Power Unit', 'Overvolt']
+  };
+  const baseStats = {
+    intel: [
+      { mineSpeed: [0.05, 0.12], watts: [65, 120], cooldown: [20, 30], price: [150, 400], type: 'CPU', suffix: 'miner', durability: [500, 1000] },
+      { mineSpeed: [0.01, 0.03], watts: [-20, -10], cooldown: [0, 0], price: [100, 300], type: 'Cooling', suffix: 'cooling', durability: [0, 0] }
+    ],
+    amd: [
+      { mineSpeed: [0.06, 0.15], watts: [65, 130], cooldown: [20, 32], price: [140, 450], type: Math.random() > 0.7 ? 'APU' : 'CPU', suffix: 'miner', durability: [450, 900] },
+      { mineSpeed: [0.01, 0.03], watts: [-20, -10], cooldown: [0, 0], price: [100, 300], type: 'Cooling', suffix: 'cooling', durability: [0, 0] }
+    ],
+    nvidia: [
+      { mineSpeed: [0.10, 0.25], watts: [75, 200], cooldown: [25, 40], price: [200, 600], type: 'GPU', suffix: 'miner', durability: [400, 800] },
+      { mineSpeed: [0.01, 0.03], watts: [-20, -10], cooldown: [0, 0], price: [100, 300], type: 'Cooling', suffix: 'cooling', durability: [0, 0] }
+    ],
+    rigs: [
+      { mineSpeed: [0.30, 0.60], watts: [235, 400], cooldown: [35, 50], price: [700, 1500], type: 'Rig', suffix: 'miner', durability: [600, 1200] },
+      { mineSpeed: [0.05, 0.10], watts: [50, 200], cooldown: [30, 60], price: [500, 2000], type: 'Power', suffix: 'power', durability: [0, 0] }
+    ],
+    blackmarket: [
+      { mineSpeed: [2.0, 10.0], watts: [500, 2000], cooldown: [180, 360], price: [10000, 1000000], type: 'Elite Rig', suffix: 'miner', durability: [800, 2000] },
+      { mineSpeed: [0.10, 0.20], watts: [50, 150], cooldown: [30, 60], price: [5000, 50000], type: 'Power', suffix: 'power', durability: [0, 0] }
+    ]
+  };
+
+  for (let i = 0; i < itemCount; i++) {
+    const statOptions = baseStats[shopType];
+    const stats = statOptions[Math.floor(Math.random() * statOptions.length)];
+    let mineSpeed = +(Math.random() * (stats.mineSpeed[1] - stats.mineSpeed[0]) + stats.mineSpeed[0]);
+    if (mineSpeed < 0.01) mineSpeed = 0.01;
+    mineSpeed = +mineSpeed.toFixed(3);
+    const watts = Math.round(Math.random() * (stats.watts[1] - stats.watts[0]) + stats.watts[0]);
+    const cooldown = Math.round(Math.random() * (stats.cooldown[1] - stats.cooldown[0]) + stats.cooldown[0]);
+    const basePrice = Math.round(Math.random() * (stats.price[1] - stats.price[0]) + stats.price[0]);
+    const price = Math.round(basePrice * difficultySettings[currentDifficulty].priceMultiplier);
+    const durability = stats.durability ? Math.round(Math.random() * (stats.durability[1] - stats.durability[0]) + stats.durability[0]) : 0;
+    const stock = shopType === 'blackmarket' ? Math.floor(Math.random() * 3) + 1 :
+                  mineSpeed < 0.2 ? Math.floor(Math.random() * 21) + 5 :
+                  mineSpeed < 0.4 ? Math.floor(Math.random() * 13) + 3 :
+                  Math.floor(Math.random() * 5) + 1;
+    const prefix = prefixes[shopType][Math.floor(Math.random() * prefixes[shopType].length)];
+    const suffix = suffixes[stats.suffix][Math.floor(Math.random() * suffixes[stats.suffix].length)];
+    const model = shopType === 'rigs' || shopType === 'blackmarket' ? `${Math.floor(Math.random() * 4000) + 3000}` : `${Math.floor(Math.random() * 10000) + 1000}`;
+    const hasCoolingAddon = ['CPU', 'GPU', 'APU', 'Rig', 'Elite Rig'].includes(stats.type) && Math.random() < (shopType === 'blackmarket' ? 0.5 : 0.2);
+    const item = {
+      name: `${prefix}${model} ${suffix}`,
+      type: stats.type,
+      price,
+      mineSpeed,
+      watts,
+      cooldown,
+      stock,
+      durability,
+      maxDurability: durability,
+      hasCoolingAddon
+    };
+    if (!item.name || isNaN(item.price) || item.price <= 0 || isNaN(item.mineSpeed) || isNaN(item.watts) || isNaN(item.cooldown) || isNaN(item.stock) || item.stock < 0 || (item.durability > 0 && isNaN(item.durability))) {
+      console.warn(`Skipping invalid item for ${shopType}:`, item);
+      continue;
+    }
+    items.push(item);
+  }
+
+  if (items.length === 0) {
+    console.error(`No valid items generated for ${shopType}`);
+    showNotification(`Error: Could not generate items for ${shopType} shop!`);
+    items.push({
+      name: `Default ${shopType} Item`,
+      type: shopType === 'blackmarket' ? 'Elite Rig' : 'Default',
+      price: Math.round((shopType === 'blackmarket' ? 10000 : 100) * difficultySettings[currentDifficulty].priceMultiplier),
+      mineSpeed: shopType === 'blackmarket' ? 2.0 : 0.1,
+      watts: shopType === 'blackmarket' ? 1000 : 50,
+      cooldown: shopType === 'blackmarket' ? 180 : 20,
+      stock: 1,
+      durability: shopType === 'blackmarket' ? 1000 : 0,
+      maxDurability: shopType === 'blackmarket' ? 1000 : 0,
+      hasCoolingAddon: false
+    });
+  }
+  console.log(`Generated ${items.length} items for ${shopType}:`, items);
+  return items;
+}
+
+/* ---------- OC HARDWARE GENERATION ---------- */
+function generateOCStock(baseStock) {
+  console.log("Generating OC stock");
+  const ocItems = baseStock.filter(() => Math.random() > 0.5).map(item => {
+    let mineSpeed = +(item.mineSpeed * 1.2).toFixed(3);
+    if (mineSpeed < 0.01) mineSpeed = 0.01;
+    const hasCoolingAddon = ['CPU', 'GPU', 'APU', 'Rig', 'Elite Rig'].includes(item.type) && Math.random() < 0.7; // Higher chance for OC
+    return {
+      ...item,
+      name: `${item.name} OC`,
+      price: Math.round(item.price * 1.2 * difficultySettings[currentDifficulty].priceMultiplier),
+      mineSpeed,
+      watts: item.type === 'Cooling' ? Math.round(item.watts * 0.9) : Math.round(item.watts * 1.2),
+      cooldown: Math.round(item.cooldown * 1.2),
+      stock: Math.floor(Math.random() * 3) + 1,
+      isOC: true,
+      durability: item.durability ? Math.round(item.durability * 0.9) : 0, // OC items have slightly lower durability
+      maxDurability: item.durability ? Math.round(item.durability * 0.9) : 0,
+      hasCoolingAddon
+    };
+  });
+  console.log("Generated OC stock:", ocItems);
+  return ocItems;
+}
+
+/* ---------- DIFFICULTY MANAGEMENT ---------- */
+function changeDifficulty(level) {
+  console.log(`Changing difficulty to ${level}`);
+  if (!(level in difficultySettings)) {
+    console.error(`Invalid difficulty level: ${level}`);
+    showNotification("Invalid difficulty level!");
+    return;
+  }
+  currentDifficulty = level;
+  updateCryptoDifficulty();
+  document.getElementById('currentDifficulty').textContent = level === 'nearly_impossible' ? 'Nearly Impossible' : level.charAt(0).toUpperCase() + level.slice(1).replace('_', ' ');
+  document.getElementById('difficultySelect').value = level;
+  recalcRawSpeed();
+  refreshMarket();
+  showNotification(`Difficulty set to ${level === 'nearly_impossible' ? 'Nearly Impossible' : level.charAt(0).toUpperCase() + level.slice(1).replace('_', ' ')}!`);
+  saveGame();
+}
+
+/* ---------- INIT ---------- */
+function initBalances() {
+  console.log("Initializing balances");
+  if (!cryptoBalance || typeof cryptoBalance !== 'object') cryptoBalance = {};
+  if (!cryptoPrices || typeof cryptoPrices !== 'object') cryptoPrices = Object.fromEntries(Object.keys(cryptoPriceData).map(c => [c, cryptoPriceData[c].basePrice]));
+  if (!marketStock || typeof marketStock !== 'object') {
+    marketStock = Object.fromEntries(
+      Object.keys(cryptoPriceData).map(c => {
+        const stock = Math.min(2000000, Math.max(10000, Math.round(2000000 / cryptoPriceData[c].basePrice)));
+        return [c, stock];
+      })
+    );
+  }
+  Object.keys(cryptoPriceData).forEach(c => {
+    cryptoBalance[c] = Number(cryptoBalance[c]) || 0;
+    if (!(c in cryptoPrices)) cryptoPrices[c] = cryptoPriceData[c].basePrice;
+    if (!(c in marketStock)) marketStock[c] = Math.min(2000000, Math.max(10000, Math.round(2000000 / cryptoPriceData[c].basePrice)));
+  });
+  if (!Array.isArray(inventory)) inventory = [];
+  inventory.forEach(item => {
+    if (item && item.durability > 0 && !item.maxDurability) {
+      item.maxDurability = item.durability;
+    }
+    if (item && item.durability <= 0 && ['CPU', 'GPU', 'APU', 'Rig', 'Elite Rig'].includes(item.type)) {
+      item.durability = 0; // Mark for removal
+    }
+  });
+  if (!achievements || typeof achievements !== 'object' || Object.keys(achievements).length === 0) {
+    console.log("Resetting achievements to default");
+    achievements = {
+      mine_shib_100: { name: "Mine 100 SHIB", condition: () => Number(cryptoBalance['SHIB'] || 0) >= 100, reward: 500, completed: false },
+      earn_10000: { name: "Earn $10,000", condition: () => Number(money('wallet')) + Number(money('bank')) >= 10000, reward: 1000, completed: false },
+      buy_5_rigs: { name: "Buy 5 Rigs", condition: () => Array.isArray(inventory) && inventory.filter(it => it && (it.type === 'Rig' || it.type === 'Elite Rig')).length >= 5, reward: 2000, completed: false }
+    };
+  }
+  updateCryptoDifficulty();
+}
+
+/* ---------- UI BUILDERS ---------- */
+function money(id) {
+  const el = document.getElementById(id);
+  if (!el) {
+    console.error(`Money element #${id} not found`);
+    return 0;
+  }
+  const value = parseFloat(el.textContent);
+  return isNaN(value) ? 0 : value;
+}
+
+function showNotification(message) {
+  console.log(`Notification: ${message}`);
+  const notif = document.getElementById('notification');
+  if (!notif) {
+    console.error("Notification element not found");
+    return;
+  }
+  notif.textContent = message;
+  notif.style.display = 'block';
+  setTimeout(() => {
+    notif.style.display = 'none';
+  }, 3000);
+}
+
+function refreshMarket() {
+  console.log("Refreshing crypto market");
+  const el = document.getElementById('crypto-market');
+  if (!el) {
+    console.error("Crypto market element not found");
+    showNotification("Error: Crypto market UI missing!");
+    return;
+  }
+  if (!cryptoDifficulty || !marketStock || !cryptoPrices) {
+    console.error("Crypto market data missing", { cryptoDifficulty, marketStock, cryptoPrices });
+    showNotification("Error: Market data missing!");
+    el.innerHTML = '<div>Error loading crypto market</div>';
+    return;
+  }
+  try {
+    Object.keys(cryptoPriceData).forEach(sym => {
+      if (!(sym in cryptoPrices)) cryptoPrices[sym] = cryptoPriceData[sym].basePrice;
+      if (!(sym in marketStock)) {
+        marketStock[sym] = Math.min(2000000, Math.max(10000, Math.round(2000000 / cryptoPriceData[sym].basePrice)));
+      }
+      if (!(sym in cryptoDifficulty)) {
+        const index = sortedCoins.indexOf(sym);
+        const baseDiff = 2 + (index / (sortedCoins.length - 1)) * 8;
+        cryptoDifficulty[sym] = Math.min(50, Math.max(1, baseDiff * difficultySettings[currentDifficulty].miningMultiplier));
+      }
+      const volatility = cryptoPriceData[sym].volatility;
+      const change = (Math.random() * 2 - 1) * volatility;
+      cryptoPrices[sym] = Math.max(0.01, parseFloat(cryptoPrices[sym]) * (1 + change)).toFixed(4);
+      const initialStock = Math.min(2000000, Math.max(10000, Math.round(2000000 / cryptoPriceData[sym].basePrice)));
+      marketStock[sym] = Math.min(initialStock, marketStock[sym] + Math.round(initialStock * difficultySettings[currentDifficulty].stockReplenishRate));
+    });
+    el.innerHTML = Object.keys(cryptoPriceData).map(sym => `
+      <div class="market-row" data-crypto="${sym}">
+        <span>${sym}</span>
+        <span>$${parseFloat(cryptoPrices[sym]).toFixed(4)}</span>
+        <span>${marketStock[sym].toLocaleString()}</span>
+        <span>${cryptoDifficulty[sym].toFixed(1)}</span>
+        <span>
+          <button onclick="mineCrypto('${sym}')">Mine</button>
+          <button onclick="sellCrypto('${sym}')">Sell</button>
+        </span>
+      </div>
+    `).join('') || '<div>No cryptocurrencies available</div>';
+  } catch (e) {
+    console.error("Error rendering crypto market:", e);
+    showNotification("Error loading crypto market!");
+    el.innerHTML = '<div>Error loading crypto market</div>';
+  }
+}
+
+function displayWallet() {
+  console.log("Displaying crypto wallet");
+  const w = document.getElementById('crypto-wallet');
+  if (!w) {
+    console.error("Crypto wallet element not found");
+    showNotification("Error: Crypto wallet UI missing!");
+    return;
+  }
+  if (!cryptoBalance || !cryptoPriceData) {
+    console.error("Crypto balance or price data not initialized", { cryptoBalance, cryptoPriceData });
+    showNotification("Error: Wallet data missing!");
+    w.innerHTML = '<div>Error loading crypto wallet</div>';
+    return;
+  }
+  try {
+    Object.keys(cryptoBalance).forEach(sym => {
+      if (!(sym in cryptoPriceData)) {
+        console.warn(`Unknown coin ${sym} in cryptoBalance`);
+        delete cryptoBalance[sym];
+      }
+      if (cryptoBalance[sym] < 0) {
+        console.warn(`Negative balance detected for ${sym}: ${cryptoBalance[sym]}`);
+        showNotification(`Warning: Negative ${sym} balance reset to 0!`);
+        cryptoBalance[sym] = 0;
+      }
+    });
+    w.innerHTML = Object.keys(cryptoPriceData).map(sym => {
+      if (!(sym in cryptoBalance)) cryptoBalance[sym] = 0;
+      return `${sym}: ${cryptoBalance[sym].toFixed(2)}`;
+    }).join('<br>') || '<div>No cryptocurrencies in wallet</div>';
+  } catch (e) {
+    console.error("Error rendering crypto wallet:", e);
+    showNotification("Error loading crypto wallet!");
+    w.innerHTML = '<div>Error loading crypto wallet</div>';
+  }
+}
+
+function renderInventory() {
+  console.log("Rendering inventory");
+  const inv = document.getElementById('inventory');
+  if (!inv) {
+    console.error("Inventory element not found");
+    showNotification("Error: Inventory section missing from page!");
+    return;
+  }
+  try {
+    inv.innerHTML = inventory.length > 0 ? inventory.map((it, i) => {
+      if (!it || !it.name || isNaN(it.mineSpeed) || isNaN(it.watts) || isNaN(it.cooldown) || isNaN(it.price)) {
+        console.warn("Invalid inventory item:", it);
+        return '';
+      }
+      const cdLeft = it.cooldownUntil ? Math.max(0, Math.ceil((it.cooldownUntil - Date.now()) / 1000)) : 0;
+      const upgrades = it.upgrades || { cooldown: 0, durability: 0, speed: 0 };
+      const upgradeCost = Math.round(it.price * 0.5 * difficultySettings[currentDifficulty].priceMultiplier);
+      const displaySpeed = `${it.mineSpeed}/s`;
+      const className = it.type === 'Cooling' ? 'cooling-item' : (it.isOverheating ? 'overheating' : '');
+      const durabilityDisplay = it.durability > 0 ? `${it.durability}/${it.maxDurability}` : 'N/A';
+      const coolingAddonText = it.hasCoolingAddon ? ' (Cooling Add-on)' : '';
+      return `
+        <div class="inv-item ${className}">
+          <span>${it.name}${coolingAddonText} (${it.type}${it.isOC ? ' OC' : ''})</span>
+          <span>${displaySpeed} | ${it.watts}W | ${cdLeft > 0 ? `${cdLeft}s` : `${it.cooldown}s`} | Dur: ${durabilityDisplay}</span>
+          <div class="upgrade-buttons">
+            <button onclick="upgradeItem(${i}, 'cooldown')" ${cdLeft > 0 || upgrades.cooldown >= 5 ? 'disabled' : ''}>Upgrade Cooldown ($${upgradeCost})</button>
+            <button onclick="upgradeItem(${i}, 'speed')" ${cdLeft > 0 || upgrades.speed >= 5 ? 'disabled' : ''}>Upgrade Speed ($${upgradeCost})</button>
+            <button onclick="upgradeItem(${i}, 'durability')" ${cdLeft > 0 || upgrades.durability >= 5 || it.durability <= 0 ? 'disabled' : ''}>Upgrade Durability ($${upgradeCost})</button>
+            <button onclick="sellItem(${i})">Sell ($${Math.round(it.price * 0.5)})</button>
+          </div>
+        </div>
+      `;
+    }).join('') : '<div>No items in inventory</div>';
+  } catch (e) {
+    console.error("Error rendering inventory:", e);
+    showNotification("Error loading inventory!");
+    inv.innerHTML = '<div>Error loading inventory</div>';
+  }
+}
+
+function upgradeItem(index, type) {
+  console.log(`Upgrading item at index ${index}, type ${type}`);
+  const item = inventory[index];
+  if (!item) {
+    showNotification("Invalid item!");
+    return;
+  }
+  const wallet = parseFloat(money('wallet'));
+  const upgradeCost = Math.round(item.price * 0.5 * difficultySettings[currentDifficulty].priceMultiplier);
+  if (wallet < upgradeCost) {
+    showNotification("Not enough money!");
+    return;
+  }
+  if (item.upgrades[type] >= 5) {
+    showNotification("Max upgrades reached!");
+    return;
+  }
+  if (item.durability <= 0 && type === 'durability') {
+    showNotification("Cannot upgrade broken hardware!");
+    return;
+  }
+  document.getElementById('wallet').textContent = (wallet - upgradeCost).toFixed(2);
+  item.upgrades[type]++;
+  if (type === 'cooldown') {
+    item.cooldown = Math.max(1, Math.round(item.cooldown * 0.9));
+  } else if (type === 'speed') {
+    item.mineSpeed = +(item.mineSpeed * 1.1).toFixed(3);
+  } else if (type === 'durability') {
+    item.durability = Math.min(item.maxDurability, item.durability + Math.round(item.maxDurability * 0.2));
+  }
+  renderInventory();
+  recalcRawSpeed();
+  showNotification(`Upgraded ${item.name}'s ${type} for $${upgradeCost}!`);
+  saveGame();
+}
+
+function sellItem(index) {
+  console.log(`Selling item at index ${index}`);
+  const item = inventory[index];
+  if (!item) {
+    showNotification("Invalid item!");
+    return;
+  }
+  const sellPrice = Math.round(item.price * 0.5);
+  document.getElementById('wallet').textContent = (parseFloat(money('wallet')) + sellPrice).toFixed(2);
+  inventory.splice(index, 1);
+  renderInventory();
+  recalcRawSpeed();
+  showNotification(`Sold ${item.name} for $${sellPrice}!`);
+  saveGame();
+}
+
+function openShop(shopType) {
+  console.log(`Opening ${shopType} shop`);
+  currentShop = shopType;
+  const modal = document.getElementById('shopModal');
+  const title = document.getElementById('shopTitle');
+  const shopList = document.getElementById('shopList');
+  const shopWallet = document.getElementById('shopWalletAmount');
+  const refreshBtn = document.getElementById('shopRefreshBtn');
+  const blackMarketRefreshBtn = document.getElementById('blackMarketRefreshBtn');
+  if (!modal || !title || !shopList || !shopWallet || !refreshBtn || !blackMarketRefreshBtn) {
+    console.error("Shop modal elements missing");
+    showNotification("Error: Shop UI missing!");
+    return;
+  }
+  title.textContent = `${shopType.charAt(0).toUpperCase() + shopType.slice(1)} Shop`;
+  modal.classList.add('active');
+  refreshBtn.style.display = shopType === 'blackmarket' ? 'none' : 'inline-block';
+  blackMarketRefreshBtn.style.display = shopType === 'blackmarket' ? 'inline-block' : 'none';
+  
+  // Update shop wallet display
+  shopWallet.textContent = parseFloat(money('wallet')).toFixed(2);
+  if (shopWalletInterval) clearInterval(shopWalletInterval);
+  shopWalletInterval = setInterval(() => {
+    shopWallet.textContent = parseFloat(money('wallet')).toFixed(2);
+  }, 1000);
+
+  // Get shop stock
+  let stock;
+  switch (shopType) {
+    case 'intel': stock = [...intelShopStock, ...shopOCStocks.intel]; break;
+    case 'amd': stock = [...amdShopStock, ...shopOCStocks.amd]; break;
+    case 'nvidia': stock = [...nvidiaShopStock, ...shopOCStocks.nvidia]; break;
+    case 'rigs': stock = [...rigsShopStock, ...shopOCStocks.rigs]; break;
+    case 'blackmarket': stock = [...blackMarketStock, ...shopOCStocks.blackmarket]; break;
+    default: 
+      console.error(`Invalid shop type: ${shopType}`);
+      showNotification("Error: Invalid shop!");
+      return;
+  }
+
+  // Render shop items
+  shopList.innerHTML = stock.map((item, index) => `
+    <div class="inv-item ${item.type === 'Cooling' ? 'cooling-item' : ''}">
+      <span>${item.name}${item.hasCoolingAddon ? ' (Cooling Add-on)' : ''} (${item.type}${item.isOC ? ' OC' : ''})</span>
+      <span>$${item.price} | ${item.mineSpeed}/s | ${item.watts}W | ${item.cooldown}s | Dur: ${item.durability > 0 ? item.durability : 'N/A'}</span>
+      <span>Stock: ${item.stock}</span>
+      <button onclick="buyShopItem('${shopType}', ${index})" ${item.stock <= 0 ? 'disabled' : ''}>Buy</button>
+    </div>
+  `).join('') || '<div>No items available in shop</div>';
+}
+
+function buyShopItem(shopType, index) {
+  console.log(`Buying item from ${shopType} at index ${index}`);
+  const wallet = parseFloat(money('wallet'));
+  let stock, ocStock;
+  switch (shopType) {
+    case 'intel': stock = intelShopStock; ocStock = shopOCStocks.intel; break;
+    case 'amd': stock = amdShopStock; ocStock = shopOCStocks.amd; break;
+    case 'nvidia': stock = nvidiaShopStock; ocStock = shopOCStocks.nvidia; break;
+    case 'rigs': stock = rigsShopStock; ocStock = shopOCStocks.rigs; break;
+    case 'blackmarket': stock = blackMarketStock; ocStock = shopOCStocks.blackmarket; break;
+    default: 
+      console.error(`Invalid shop type: ${shopType}`);
+      showNotification("Error: Invalid shop!");
+      return;
+  }
+  const allStock = [...stock, ...ocStock];
+  const item = allStock[index];
+  if (!item || item.stock <= 0) {
+    showNotification("Item out of stock!");
+    return;
+  }
+  if (wallet < item.price) {
+    showNotification("Not enough money!");
+    return;
+  }
+  document.getElementById('wallet').textContent = (wallet - item.price).toFixed(2);
+  item.stock--;
+  inventory.push({ ...item, stock: undefined, cooldownUntil: 0, upgrades: { cooldown: 0, durability: 0, speed: 0 }, isOverheating: false });
+  renderInventory();
+  recalcRawSpeed();
+  openShop(shopType); // Refresh shop UI
+  showNotification(`Purchased ${item.name} for $${item.price}!`);
+  saveGame();
+}
+
+function refreshShopItems() {
+  console.log("Refreshing shop items");
+  if (Date.now() < lastShopRefresh + 180000) {
+    showNotification("Shop refresh on cooldown!");
+    return;
+  }
+  lastShopRefresh = Date.now();
+  if (currentShop && currentShop !== 'blackmarket') {
+    switch (currentShop) {
+      case 'intel': intelShopStock = generateShopItems('intel'); shopOCStocks.intel = generateOCStock(intelShopStock); break;
+      case 'amd': amdShopStock = generateShopItems('amd'); shopOCStocks.amd = generateOCStock(amdShopStock); break;
+      case 'nvidia': nvidiaShopStock = generateShopItems('nvidia'); shopOCStocks.nvidia = generateOCStock(nvidiaShopStock); break;
+      case 'rigs': rigsShopStock = generateShopItems('rigs'); shopOCStocks.rigs = generateOCStock(rigsShopStock); break;
+    }
+    openShop(currentShop);
+    showNotification("Shop items refreshed!");
+  }
+}
+
+function refreshBlackMarket() {
+  console.log("Refreshing black market");
+  const wallet = parseFloat(money('wallet'));
+  if (wallet < 10000) {
+    showNotification("Not enough money to refresh Black Market!");
+    return;
+  }
+  document.getElementById('wallet').textContent = (wallet - 10000).toFixed(2);
+  blackMarketStock = generateShopItems('blackmarket');
+  shopOCStocks.blackmarket = generateOCStock(blackMarketStock);
+  openShop('blackmarket');
+  showNotification("Black Market refreshed for $10000!");
+  saveGame();
+}
+
+function closeShop() {
+  console.log("Closing shop");
+  const modal = document.getElementById('shopModal');
+  if (modal) modal.classList.remove('active');
+  if (shopWalletInterval) clearInterval(shopWalletInterval);
+  currentShop = null;
+}
+
+function buyGamepass(type) {
+  console.log(`Buying gamepass: ${type}`);
+  const wallet = parseFloat(money('wallet'));
+  const gamepassCosts = {
+    autoMine: 500,
+    autoSell: 400,
+    lowElectricity: 300
+  };
+  const cost = gamepassCosts[type];
+  if (!cost) {
+    console.error(`Invalid gamepass type: ${type}`);
+    showNotification("Error: Invalid gamepass!");
+    return;
+  }
+  if (gamepasses[type]) {
+    showNotification("Gamepass already purchased!");
+    return;
+  }
+  if (wallet < cost) {
+    showNotification("Not enough money!");
+    return;
+  }
+  document.getElementById('wallet').textContent = (wallet - cost).toFixed(2);
+  gamepasses[type] = true;
+  updateGamepassUI();
+  showNotification(`Purchased ${type.replace(/([A-Z])/g, ' $1').trim()} gamepass for $${cost}!`);
+  saveGame();
+}
+
+function updateGamepassUI() {
+  console.log("Updating gamepass UI");
+  document.getElementById('autoMineToggle').style.display = gamepasses.autoMine ? 'inline-block' : 'none';
+  document.getElementById('autoSellToggle').style.display = gamepasses.autoSell ? 'inline-block' : 'none';
+  document.querySelector(`button[onclick="buyGamepass('autoMine')"]`).disabled = gamepasses.autoMine;
+  document.querySelector(`button[onclick="buyGamepass('autoSell')"]`).disabled = gamepasses.autoSell;
+  document.querySelector(`button[onclick="buyGamepass('lowElectricity')"]`).disabled = gamepasses.lowElectricity;
+}
+
+function toggleAutoMine() {
+  autoMineEnabled = !autoMineEnabled;
+  document.getElementById('autoMineToggle').textContent = `Toggle Auto-Mine (${autoMineEnabled ? 'On' : 'Off'})`;
+  showNotification(`Auto-Mine ${autoMineEnabled ? 'enabled' : 'disabled'}!`);
+  saveGame();
+}
+
+function toggleAutoSell() {
+  autoSellEnabled = !autoSellEnabled;
+  document.getElementById('autoSellToggle').textContent = `Toggle Auto-Sell (${autoSellEnabled ? 'On' : 'Off'})`;
+  showNotification(`Auto-Sell ${autoSellEnabled ? 'enabled' : 'disabled'}!`);
+  saveGame();
+}
+
+function recalcRawSpeed() {
+  console.log("Recalculating raw speed");
+  rawSpeed = 0;
+  totalWatts = 0;
+  let highestWattItem = 'None';
+  let maxWatts = 0;
+  const isOverheating = totalWatts > OVERHEATING_THRESHOLD;
+  inventory.forEach(it => {
+    if (!it || isNaN(it.mineSpeed) || isNaN(it.watts) || it.durability <= 0) return;
+    const cdLeft = it.cooldownUntil ? Math.max(0, (it.cooldownUntil - Date.now()) / 1000) : 0;
+    it.isOverheating = isOverheating && ['CPU', 'GPU', 'APU', 'Rig', 'Elite Rig'].includes(it.type);
+    if (cdLeft === 0 && it.mineSpeed > 0) {
+      let speed = it.mineSpeed * (1 + (it.upgrades?.speed || 0) * 0.1);
+      if (it.isOverheating && !it.hasCoolingAddon) {
+        speed *= 0.7; // 30% speed penalty for overheating
+      } else if (it.hasCoolingAddon) {
+        speed *= 1.1; // 10% speed boost with cooling add-on
+      }
+      rawSpeed += speed;
+    }
+    totalWatts += it.watts;
+    if (it.watts > maxWatts && it.type !== 'Cooling') {
+      maxWatts = it.watts;
+      highestWattItem = it.name;
+    }
+  });
+  rawSpeed = rawSpeed * tempSpeedBoost;
+  effSpeed = miningCrypto && cryptoDifficulty[miningCrypto] ? rawSpeed / cryptoDifficulty[miningCrypto] : 0;
+  document.getElementById('raw-speed').textContent = rawSpeed.toFixed(3);
+  document.getElementById('eff-speed').textContent = effSpeed.toFixed(3);
+  document.getElementById('total-watts').textContent = totalWatts.toFixed(0);
+  document.getElementById('highest-watt-item').textContent = highestWattItem;
+  document.getElementById('electricity-fee').textContent = (totalWatts * 0.0001 * (gamepasses.lowElectricity ? 0.5 : 1) * difficultySettings[currentDifficulty].electricityMultiplier).toFixed(4);
+  if (isOverheating) {
+    showNotification("Warning: System overheating! Mining speed reduced and durability loss increased!");
+  }
+}
+
+function mineCrypto(sym) {
+  console.log(`Mining ${sym}`);
+  if (!(sym in cryptoPriceData)) {
+    showNotification("Invalid cryptocurrency!");
+    return;
+  }
+  if (miningCrypto === sym) {
+    showNotification(`Already mining ${sym}!`);
+    return;
+  }
+  miningCrypto = sym;
+  document.getElementById('mining-crypto').textContent = sym;
+  if (miningTimer) clearInterval(miningTimer);
+  miningTimer = setInterval(() => {
+    if (!miningCrypto) return;
+    const mined = effSpeed;
+    if (isNaN(mined) || mined <= 0) return;
+    cryptoBalance[sym] = (cryptoBalance[sym] || 0) + mined;
+    totalMined += mined;
+    marketStock[sym] = Math.max(0, marketStock[sym] - mined);
+    document.getElementById('total-mined').textContent = totalMined.toFixed(2);
+    displayWallet();
+    refreshMarket();
+    const isOverheating = totalWatts > OVERHEATING_THRESHOLD;
+    let brokenItems = [];
+    inventory.forEach((it, index) => {
+      if (it && it.cooldown > 0 && it.mineSpeed > 0 && it.durability > 0) {
+        it.cooldownUntil = Date.now() + (it.hasCoolingAddon ? it.cooldown * 0.8 : it.cooldown) * 1000; // Cooling add-on reduces cooldown by 20%
+        const durabilityLoss = isOverheating && !it.hasCoolingAddon ? 2 : (it.hasCoolingAddon ? 0.5 : 1);
+        it.durability = Math.max(0, it.durability - durabilityLoss);
+        if (it.durability <= 0 && ['CPU', 'GPU', 'APU', 'Rig', 'Elite Rig'].includes(it.type)) {
+          brokenItems.push({ name: it.name, index });
+        }
+      }
+    });
+    if (brokenItems.length > 0) {
+      brokenItems.forEach(({ name, index }) => {
+        showNotification(`Hardware ${name} has broken due to zero durability!`);
+        inventory.splice(index, 1);
+      });
+      recalcRawSpeed();
+    }
+    renderInventory();
+    saveGame();
+  }, 1000);
+  recalcRawSpeed();
+  showNotification(`Started mining ${sym}!`);
+}
+
+function sellCrypto(sym) {
+  console.log(`Selling ${sym}`);
+  if (!(sym in cryptoPriceData)) {
+    showNotification("Invalid cryptocurrency!");
+    return;
+  }
+  const amount = cryptoBalance[sym] || 0;
+  if (amount <= 0) {
+    showNotification(`No ${sym} to sell!`);
+    return;
+  }
+  const value = amount * cryptoPrices[sym];
+  document.getElementById('wallet').textContent = (parseFloat(money('wallet')) + value).toFixed(2);
+  cryptoBalance[sym] = 0;
+  displayWallet();
+  showNotification(`Sold ${amount.toFixed(2)} ${sym} for $${value.toFixed(2)}!`);
+  saveGame();
+}
+
+function stopMining() {
+  console.log("Stopping mining");
+  if (miningTimer) clearInterval(miningTimer);
+  miningCrypto = null;
+  document.getElementById('mining-crypto').textContent = '—';
+  effSpeed = 0;
+  document.getElementById('eff-speed').textContent = effSpeed.toFixed(3);
+  showNotification("Mining stopped!");
+}
+
+function autoPayElectricity() {
+  console.log("Paying electricity");
+  const fee = totalWatts * 0.0001 * (gamepasses.lowElectricity ? 0.5 : 1) * difficultySettings[currentDifficulty].electricityMultiplier;
+  if (fee <= 0) return;
+  let wallet = parseFloat(money('wallet'));
+  if (wallet >= fee) {
+    document.getElementById('wallet').textContent = (wallet - fee).toFixed(2);
+  } else {
+    debt += fee - wallet;
+    document.getElementById('wallet').textContent = "0.00";
+    showNotification(`Electricity debt increased by $${(fee - wallet).toFixed(2)}! Total debt: $${debt.toFixed(2)}`);
+  }
+  saveGame();
+}
+
+function checkAutoMine() {
+  if (!gamepasses.autoMine || !autoMineEnabled) return;
+  console.log("Checking auto-mine");
+  let bestCoin = null;
+  let bestValue = 0;
+  Object.keys(cryptoPriceData).forEach(sym => {
+    const value = cryptoPrices[sym] / cryptoDifficulty[sym];
+    if (value > bestValue && marketStock[sym] > 0) {
+      bestValue = value;
+      bestCoin = sym;
+    }
+  });
+  if (bestCoin && bestCoin !== miningCrypto) {
+    mineCrypto(bestCoin);
+  }
+}
+
+function checkAutoSell() {
+  if (!gamepasses.autoSell || !autoSellEnabled) return;
+  console.log("Checking auto-sell");
+  Object.keys(cryptoBalance).forEach(sym => {
+    if (cryptoBalance[sym] > 0) {
+      sellCrypto(sym);
+    }
+  });
+}
+
+function updateAchievements() {
+  console.log("Updating achievements");
+  const achEl = document.getElementById('achievements');
+  if (!achEl) {
+    console.error("Achievements element not found");
+    showNotification("Error: Achievements UI missing!");
+    return;
+  }
+  try {
+    let updated = false;
+    Object.keys(achievements).forEach(key => {
+      const ach = achievements[key];
+      if (!ach.completed && ach.condition()) {
+        ach.completed = true;
+        document.getElementById('wallet').textContent = (parseFloat(money('wallet')) + ach.reward).toFixed(2);
+        showNotification(`Achievement Unlocked: ${ach.name}! Reward: $${ach.reward}`);
+        updated = true;
+      }
+    });
+    achEl.innerHTML = Object.keys(achievements).map(key => {
+      const ach = achievements[key];
+      return `<div>${ach.name}: ${ach.completed ? 'Completed' : 'Incomplete'} (Reward: $${ach.reward})</div>`;
+    }).join('') || '<div>No achievements available</div>';
+    if (updated) saveGame();
+  } catch (e) {
+    console.error("Error updating achievements:", e);
+    showNotification("Error loading achievements!");
+    achEl.innerHTML = '<div>Error loading achievements</div>';
+  }
+}
+
+function saveGame() {
+  console.log("Saving game");
+  try {
+    const gameState = {
+      wallet: parseFloat(money('wallet')),
+      bank: parseFloat(money('bank')),
+      inventory,
+      cryptoBalance,
+      gamepasses,
+      autoMineEnabled,
+      autoSellEnabled,
+      totalMined,
+      totalWatts,
+      currentDifficulty,
+      achievements
+    };
+    localStorage.setItem('cryptoMiningTycoonSave', JSON.stringify(gameState));
+    console.log("Game saved successfully");
+  } catch (e) {
+    console.error("Error saving game:", e);
+    showNotification("Error saving game!");
+  }
+}
+
+function loadGame() {
+  console.log("Loading game");
+  try {
+    const saved = localStorage.getItem('cryptoMiningTycoonSave');
+    if (saved) {
+      const gameState = JSON.parse(saved);
+      document.getElementById('wallet').textContent = (gameState.wallet || 1000).toFixed(2);
+      document.getElementById('bank').textContent = (gameState.bank || 0).toFixed(2);
+      inventory = Array.isArray(gameState.inventory) ? gameState.inventory : [];
+      inventory.forEach(item => {
+        if (item && item.durability > 0 && !item.maxDurability) {
+          item.maxDurability = item.durability;
+        }
+        if (item && item.durability <= 0 && ['CPU', 'GPU', 'APU', 'Rig', 'Elite Rig'].includes(item.type)) {
+          item.durability = 0; // Mark for removal
+        }
+      });
+      cryptoBalance = typeof gameState.cryptoBalance === 'object' ? gameState.cryptoBalance : {};
+      gamepasses = typeof gameState.gamepasses === 'object' ? gameState.gamepasses : { autoMine: false, autoSell: false, lowElectricity: false };
+      autoMineEnabled = !!gameState.autoMineEnabled;
+      autoSellEnabled = !!gameState.autoSellEnabled;
+      totalMined = Number(gameState.totalMined) || 0;
+      totalWatts = Number(gameState.totalWatts) || 0;
+      currentDifficulty = gameState.currentDifficulty || 'normal';
+      achievements = typeof gameState.achievements === 'object' ? gameState.achievements : achievements;
+      document.getElementById('difficultySelect').value = currentDifficulty;
+      document.getElementById('currentDifficulty').textContent = currentDifficulty === 'nearly_impossible' ? 'Nearly Impossible' : currentDifficulty.charAt(0).toUpperCase() + currentDifficulty.slice(1).replace('_', ' ');
+      updateCryptoDifficulty();
+      refreshMarket();
+      displayWallet();
+      renderInventory();
+      updateGamepassUI();
+      recalcRawSpeed();
+      console.log("Game loaded successfully");
+    }
+  } catch (e) {
+    console.error("Error loading game:", e);
+    showNotification("Error loading game! Starting new game.");
+    resetGame();
+  }
+}
+
+function resetGame() {
+  console.log("Resetting game");
+  try {
+    document.getElementById('wallet').textContent = "1000.00";
+    document.getElementById('bank').textContent = "0.00";
+    inventory = [];
+    cryptoBalance = {};
+    Object.keys(cryptoPriceData).forEach(c => cryptoBalance[c] = 0);
+    miningCrypto = null;
+    rawSpeed = 0;
+    effSpeed = 0;
+    totalMined = 0;
+    totalWatts = 0;
+    debt = 0;
+    gamepasses = { autoMine: false, autoSell: false, lowElectricity: false };
+    autoMineEnabled = false;
+    autoSellEnabled = false;
+    currentDifficulty = 'normal';
+    document.getElementById('difficultySelect').value = 'normal';
+    document.getElementById('currentDifficulty').textContent = 'Normal';
+    achievements = {
+      mine_shib_100: { name: "Mine 100 SHIB", condition: () => Number(cryptoBalance['SHIB'] || 0) >= 100, reward: 500, completed: false },
+      earn_10000: { name: "Earn $10,000", condition: () => Number(money('wallet')) + Number(money('bank')) >= 10000, reward: 1000, completed: false },
+      buy_5_rigs: { name: "Buy 5 Rigs", condition: () => Array.isArray(inventory) && inventory.filter(it => it && (it.type === 'Rig' || it.type === 'Elite Rig')).length >= 5, reward: 2000, completed: false }
+    };
+    intelShopStock = generateShopItems('intel');
+    amdShopStock = generateShopItems('amd');
+    nvidiaShopStock = generateShopItems('nvidia');
+    rigsShopStock = generateShopItems('rigs');
+    blackMarketStock = generateShopItems('blackmarket');
+    shopOCStocks = { intel: [], amd: [], nvidia: [], rigs: [], blackmarket: [] };
+    updateCryptoDifficulty();
+    refreshMarket();
+    displayWallet();
+    renderInventory();
+    updateGamepassUI();
+    updateAchievements();
+    recalcRawSpeed();
+    stopMining();
+    saveGame();
+    showNotification("Game reset successfully!");
+  } catch (e) {
+    console.error("Error resetting game:", e);
+    showNotification("Error resetting game!");
+  }
+}
+
+function clearSaveData() {
+  console.log("Clearing save data");
+  try {
+    localStorage.removeItem('cryptoMiningTycoonSave');
+    resetGame();
+    showNotification("Save data cleared and game reset!");
+  } catch (e) {
+    console.error("Error clearing save data:", e);
+    showNotification("Error clearing save data!");
+  }
+}
+
+function transfer(from, to) {
+  console.log(`Transferring from ${from} to ${to}`);
+  const fromEl = document.getElementById(from);
+  const toEl = document.getElementById(to);
+  if (!fromEl || !toEl) {
+    console.error(`Element #${from} or #${to} not found`);
+    showNotification("Error: Transfer failed!");
+    return;
+  }
+  let amount = parseFloat(fromEl.textContent);
+  if (isNaN(amount) || amount <= 0) {
+    showNotification("No funds to transfer!");
+    return;
+  }
+  toEl.textContent = (parseFloat(toEl.textContent) + amount).toFixed(2);
+  fromEl.textContent = "0.00";
+  showNotification(`Transferred $${amount.toFixed(2)} from ${from} to ${to}!`);
+  saveGame();
+}
+
+/* ---------- DOMContentLoaded ---------- */
+document.addEventListener('DOMContentLoaded', () => {
+  console.log("Initializing game");
+  try {
+    const requiredElements = ['crypto-market', 'crypto-wallet', 'inventory', 'shopModal', 'shopTitle', 'shopList', 'wallet', 'bank', 'raw-speed', 'eff-speed', 'total-watts', 'total-mined', 'mining-crypto', 'autoMineToggle', 'autoSellToggle', 'shopRefreshBtn', 'blackMarketRefreshBtn', 'electricity-fee', 'highest-watt-item', 'difficultySelect', 'currentDifficulty', 'shopWallet', 'shopWalletAmount', 'achievements', 'notification'];
+    for (const id of requiredElements) {
+      if (!document.getElementById(id)) {
+        console.error(`DOM element #${id} missing`);
+        throw new Error(`Missing UI element #${id}`);
+      }
+    }
+    console.log("Initializing shop stocks");
+    const validateStock = (stock, type) => Array.isArray(stock) && stock.length > 0 && stock.every(it => it && it.name && !isNaN(it.price) && it.price > 0 && !isNaN(it.mineSpeed) && !isNaN(it.watts) && !isNaN(it.cooldown) && !isNaN(it.stock) && it.stock >= 0);
+    if (!validateStock(intelShopStock, 'intel')) intelShopStock = generateShopItems('intel');
+    if (!validateStock(amdShopStock, 'amd')) amdShopStock = generateShopItems('amd');
+    if (!validateStock(nvidiaShopStock, 'nvidia')) nvidiaShopStock = generateShopItems('nvidia');
+    if (!validateStock(rigsShopStock, 'rigs')) rigsShopStock = generateShopItems('rigs');
+    if (!validateStock(blackMarketStock, 'blackmarket')) blackMarketStock = generateShopItems('blackmarket');
+    initBalances();
+    loadGame();
+    refreshMarket();
+    displayWallet();
+    renderInventory();
+    updateGamepassUI();
+    updateAchievements();
+    recalcRawSpeed();
+    document.getElementById('raw-speed').textContent = rawSpeed.toFixed(3);
+    document.getElementById('eff-speed').textContent = effSpeed.toFixed(3);
+    document.getElementById('total-watts').textContent = totalWatts.toFixed(0);
+    document.getElementById('total-mined').textContent = totalMined.toFixed(2);
+    document.getElementById('mining-crypto').textContent = miningCrypto || '—';
+    intervals.forEach(clearInterval);
+    intervals = [
+      setInterval(refreshMarket, 30000),
+      setInterval(autoPayElectricity, 300000),
+      setInterval(checkAutoMine, 15000),
+      setInterval(checkAutoSell, 15000),
+      setInterval(saveGame, 30000),
+      setInterval(updateAchievements, 5000),
+      setInterval(() => {
+        const btn = document.getElementById('shopRefreshBtn');
+        if (btn) {
+          const timeLeft = Math.max(0, Math.ceil((lastShopRefresh + 180000 - Date.now()) / 1000));
+          btn.textContent = timeLeft > 0 ? `Refresh Items (${timeLeft}s)` : 'Refresh Items (Free)';
+          btn.disabled = timeLeft > 0;
+        }
+      }, 1000),
+      setInterval(() => {
+        console.log("Auto-refreshing black market");
+        blackMarketStock = generateShopItems('blackmarket');
+        shopOCStocks.blackmarket = generateOCStock(blackMarketStock);
+        if (currentShop === 'blackmarket') openShop('blackmarket');
+        showNotification("Black Market stock refreshed!");
+      }, 600000),
+      setInterval(() => {
+        console.log("Triggering market event");
+        const event = marketEvents[Math.floor(Math.random() * marketEvents.length)];
+        event.effect();
+        showNotification(`Market Event: ${event.name}!`);
+        if (event.duration) {
+          setTimeout(() => {
+            if (event.cleanup) event.cleanup();
+            else refreshMarket();
+            showNotification(`${event.name} event ended!`);
+          }, event.duration);
+        }
+      }, Math.random() * 300000 + 300000)
+    ];
+    console.log("Game initialized successfully");
+  } catch (e) {
+    console.error("Initialization error:", e);
+    showNotification("Error initializing game! Starting new game.");
+    resetGame();
+  }
+});
+</script>
+</body>
+</html>
